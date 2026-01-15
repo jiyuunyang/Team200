@@ -3,8 +3,8 @@ services:
     build:
       context: ./backend
     container_name: backend
-    env_file:
-      - ./backend/.env
+    environment:
+      ML_BASE_URL: http://ml:9000
     ports:
       - "8000:8000"
     volumes:

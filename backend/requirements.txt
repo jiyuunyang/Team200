@@ -1,0 +1,4 @@
+fastapi # API 설정 프레임워크
+uvicorn # API 통신 서버
+requests # HTTP 요청 라이브러리
+python-dotenv # 환경 변수 관리

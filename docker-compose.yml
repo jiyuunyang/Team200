@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: backend
+    environment:
+      ML_BASE_URL: http://ml:9000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/backendWorkspace
+    command: uvicorn test.test_main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - ml
+
+  ml:
+    build:
+      context: ./ml
+    container_name: ml
+    # ml도 env 쓰면 여기에 추가:
+    # env_file:
+    #   - ./ml/.env
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./ml:/mlWorkspace
+    command: uvicorn test:app --host 0.0.0.0 --port 9000 --reload

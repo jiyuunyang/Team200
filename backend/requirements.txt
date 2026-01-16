@@ -1,4 +1,15 @@
-fastapi # API 설정 프레임워크
-uvicorn # API 통신 서버
-requests # HTTP 요청 라이브러리
-python-dotenv # 환경 변수 관리
+# Web framework
+fastapi==0.110.0          # API 설정 프레임워크
+uvicorn==0.27.1           # ASGI 서버
+
+# HTTP client
+requests==2.31.0          # 외부 API / ML 서버 통신
+
+# Database
+sqlalchemy==2.0.25        # ORM
+pymysql==1.1.0            # MySQL 드라이버
+
+# Env & Security
+python-dotenv==1.0.1      # 환경 변수 관리
+passlib[bcrypt]==1.7.4    # 비밀번호 해싱
+bcrypt==4.1.2             # passlib 의존성 (버전 고정)

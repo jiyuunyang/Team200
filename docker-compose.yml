@@ -1,8 +1,12 @@
+version: "3.8"
+
 services:
   backend:
     build:
       context: ./backend
     container_name: backend
+    env_file:
+      - ./backend/.env
     environment:
       ML_BASE_URL: http://ml:9000
     ports:
@@ -12,16 +16,27 @@ services:
     command: uvicorn test.test_main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       - ml
+      - mysql
 
   ml:
     build:
       context: ./ml
     container_name: ml
-    # ml도 env 쓰면 여기에 추가:
-    # env_file:
-    #   - ./ml/.env
     ports:
       - "9000:9000"
     volumes:
       - ./ml:/mlWorkspace
     command: uvicorn test:app --host 0.0.0.0 --port 9000 --reload
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    env_file:
+      - ./backend/.env
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:

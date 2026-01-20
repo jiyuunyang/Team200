@@ -1,28 +1,25 @@
 # backend/app/auth/service.py
+from sqlalchemy.orm import Session
+
 from app.auth.schemas import LoginRequest
 from app.auth.jwt import create_access_token
 from app.core.security import verify_password
+from app.db.models import User
 
 
-# 🔐 테스트용 유저 (password = "1234")
-FAKE_USER = {
-    "id": 1,
-    "email": "test@test.com",
-    "password_hash": "$2b$12$JV4fzWUcBJHvtZfIiakcVOt300nYmonQtcWNacZ/xvpIDVtvcVDla",
-}
+def login_user(data: LoginRequest, db: Session) -> dict | None:
+    user = db.query(User).filter(User.email == data.email).first()
 
-
-def login_user(data: LoginRequest) -> dict | None:
-    if data.email != FAKE_USER["email"]:
+    if not user:
         return None
 
-    if not verify_password(data.password, FAKE_USER["password_hash"]):
+    if not verify_password(data.password, user.password_hash):
         return None
 
     access_token = create_access_token(
         data={
-            "user_id": FAKE_USER["id"],
-            "email": FAKE_USER["email"],
+            "user_id": user.id,
+            "email": user.email,
         }
     )
 

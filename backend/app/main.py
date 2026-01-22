@@ -1,9 +1,13 @@
-# backend/app/main.py
 from fastapi import FastAPI
 
 from app.auth.router import router as auth_router
+from app.db.base import Base
+from app.db.session import engine
 
 app = FastAPI()
+
+# 🔴 DB 테이블 생성 (필수)
+Base.metadata.create_all(bind=engine)
 
 # Health Check
 @app.get("/")

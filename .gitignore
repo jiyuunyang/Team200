@@ -61,8 +61,8 @@ pip-wheel-metadata/
 .mypy_cache/
 
 # ML artifacts
-models/
-checkpoints/
+ml/models/
+ml/checkpoints/
 mlruns/
 wandb/
 tensorboard/

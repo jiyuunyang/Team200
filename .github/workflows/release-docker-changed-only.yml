@@ -1,0 +1,102 @@
+name: Release - Build & Push (Changed Services Only)
+
+on:
+  push:
+    branches: [release]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      repo_lc: ${{ steps.repo.outputs.repo_lc }}            #도커 대소문자 구분 불가 -> 소문자로 변환
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      ml: ${{ steps.filter.outputs.ml }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+              - 'infra/nginx/**'
+            backend:
+              - 'backend/**'
+            ml:
+              - 'ml/**'
+
+      - name: Compute lowercase repo
+        id: repo
+        shell: bash
+        run: echo "repo_lc=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+  build-web:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: infra/nginx/Dockerfile.web
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ needs.detect-changes.outputs.repo_lc }}-web:stage
+            ${{ env.REGISTRY }}/${{ needs.detect-changes.outputs.repo_lc }}-web:${{ github.sha }}
+
+  build-backend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ needs.detect-changes.outputs.repo_lc }}-backend:stage
+            ${{ env.REGISTRY }}/${{ needs.detect-changes.outputs.repo_lc }}-backend:${{ github.sha }}
+
+  build-ml:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ml == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: ml
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ needs.detect-changes.outputs.repo_lc }}-ml:stage
+            ${{ env.REGISTRY }}/${{ needs.detect-changes.outputs.repo_lc }}-ml:${{ github.sha }}

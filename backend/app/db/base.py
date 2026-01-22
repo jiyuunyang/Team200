@@ -1,5 +1,6 @@
-# backend/app/db/base.py
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import declarative_base
 
-class Base(DeclarativeBase):
-    pass
+Base = declarative_base()
+
+# 🔴 이게 핵심
+from app.db.models import user

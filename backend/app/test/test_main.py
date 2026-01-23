@@ -3,8 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-from test.test_front import router as front_router
-from test.test_ml import router as ml_router
+from app.test.test_front import router as front_router
+from app.test.test_ml import router as ml_router
 
 load_dotenv()
 

@@ -26,7 +26,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/backendWorkspace
-    command: uvicorn test.test_main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.test.test_main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       - ml
       - mysql

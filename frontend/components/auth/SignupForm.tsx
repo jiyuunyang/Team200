@@ -1,7 +1,7 @@
 'use client';
 
-import Input from '@/components/ui/Input';
-import Condition from '@/components/ui/Condition';
+import Condition from '@/components/auth/Condition';
+import Input from '@/components/auth/Input';
 
 export default function SignupForm() {
   return (

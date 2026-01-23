@@ -1,4 +1,4 @@
-import AlertItem from '@/components/dashboard/AlertItem';
+import AlertItem from '@/components/dashboard/alerts/AlertItem';
 
 export default function AlertsPage() {
   return (

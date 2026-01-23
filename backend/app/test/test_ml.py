@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from services.ml_client import ml_health, ml_classify
+from app.utils.ml_client import ml_health, ml_classify
 
 router = APIRouter()
 

@@ -1,8 +1,18 @@
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import TopBar from '@/components/dashboard/TopBar';
 import BottomNav from '@/components/dashboard/BottomNav';
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+export default async function DashboardLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const token = (await cookies()).get('accessToken')?.value;
+
+  if (!token) redirect('/login');
+
   return (
     <div className='min-h-screen bg-[#0b1a12] text-white flex flex-col'>
       {/* 상단 헤더 */}

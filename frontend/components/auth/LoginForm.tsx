@@ -1,4 +1,34 @@
+'use client';
+import { useForm, SubmitHandler } from 'react-hook-form';
+
+type LoginFormInputs = {
+  email: string;
+  password: string;
+};
+
 export default function LoginForm() {
+  const { register, handleSubmit } = useForm<LoginFormInputs>();
+
+  const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
+    // Next.js API Route에서 accessToken 쿠키를 HttpOnly로 설정
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (result.success) {
+        window.location.href = '/';
+      } else {
+        alert(result.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('로그인 중 오류 발생');
+    }
+  };
+
   return (
     <div className='space-y-8'>
       {/* 헤더 */}
@@ -15,14 +45,16 @@ export default function LoginForm() {
       </div>
 
       {/* 폼 */}
-      <form className='space-y-4'>
+      <form className='space-y-4' onSubmit={handleSubmit(onSubmit)}>
         <input
+          {...register('email')}
           type='email'
           placeholder='engineer@battery-monitor.com'
           className='w-full rounded-xl bg-black/30 border border-green-900 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500'
         />
 
         <input
+          {...register('password')}
           type='password'
           placeholder='••••••••'
           className='w-full rounded-xl bg-black/30 border border-green-900 px-4 py-3'

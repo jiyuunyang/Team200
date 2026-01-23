@@ -6,7 +6,7 @@ export default function SettingItem({
 }: {
   label: string;
   value?: string;
-  action?: string;
+  action?: () => void;
   danger?: boolean;
 }) {
   return (
@@ -16,8 +16,9 @@ export default function SettingItem({
       {action && (
         <button
           className={`text-sm ${danger ? 'text-red-400' : 'text-green-400'}`}
+          onClick={action}
         >
-          {action}
+          {label}
         </button>
       )}
     </div>

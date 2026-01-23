@@ -64,6 +64,12 @@ export default function LoginForm() {
           로그인 ⚡
         </button>
       </form>
+      <p className='text-center text-sm text-gray-400'>
+        계정이 없으신가요?{' '}
+        <a href='/signup' className='text-green-400'>
+          회원가입
+        </a>
+      </p>
     </div>
   );
 }

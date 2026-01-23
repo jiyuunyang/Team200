@@ -36,12 +36,6 @@ export default function SignupForm() {
         </button>
       </form>
 
-      {/* 소셜 */}
-      <div className='flex justify-center gap-4'>
-        <button className='w-12 h-12 rounded-full bg-black/30'></button>
-        <button className='w-12 h-12 rounded-full bg-black/30'>G</button>
-      </div>
-
       <p className='text-center text-sm text-gray-400'>
         이미 계정이 있으신가요?{' '}
         <a href='/login' className='text-green-400'>

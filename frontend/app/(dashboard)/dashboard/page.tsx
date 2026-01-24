@@ -1,4 +1,4 @@
-import AlertCard from '@/components/dashboard/AlertCard';
+import AlertCard from '@/components/dashboard/alerts/AlertCard';
 import SOHRing from '@/components/dashboard/SOHRing';
 import RULCard from '@/components/dashboard/RULCard';
 

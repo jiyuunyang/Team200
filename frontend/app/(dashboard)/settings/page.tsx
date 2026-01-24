@@ -1,7 +1,7 @@
 'use client';
 
-import SettingItem from '@/components/dashboard/setting/SettingItem';
-import SettingSection from '@/components/dashboard/setting/SettingSection';
+import SettingItem from '@/components/dashboard/settings/SettingItem';
+import SettingSection from '@/components/dashboard/settings/SettingSection';
 
 export default function SettingsPage() {
   async function handleLogout() {

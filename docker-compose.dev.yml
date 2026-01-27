@@ -19,13 +19,14 @@ services:
       context: ./backend
     container_name: backend
     env_file:
-      - ./backend/.env
+      - ./backend/.env.docker
     environment:
       ML_BASE_URL: http://ml:9000
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/backendWorkspace
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload    # dev 환경에서만 프로세스 재시작할래.
     depends_on:
       - ml
       - mysql

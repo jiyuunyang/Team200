@@ -1,13 +1,13 @@
 import { apiRequest, ApiResponse } from '../request';
 
-export type AuthParams = { email: string; password: string };
+export type LoginParams = { email: string; password: string };
 export type AuthData = { token: string };
 
-export type SignupParams = { name: string } & AuthParams;
+export type SignupParams = { name: string } & LoginParams;
 export type SignupData = { userId: string };
 
 export async function login(
-  params: AuthParams,
+  params: LoginParams,
 ): Promise<ApiResponse<AuthData>> {
   return apiRequest<AuthData>('/auth/login', {
     method: 'POST',
@@ -21,5 +21,13 @@ export async function signup(
   return apiRequest<SignupData>('/auth/signup', {
     method: 'POST',
     body: JSON.stringify(params),
+  });
+}
+
+export type MeData = { email: string; user_id: string };
+
+export async function getMe(token: string): Promise<ApiResponse<MeData>> {
+  return apiRequest<MeData>('/auth/me', {
+    headers: { Authorization: `Bearer ${token}` },
   });
 }

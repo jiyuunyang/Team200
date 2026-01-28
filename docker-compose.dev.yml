@@ -19,9 +19,10 @@ services:
       context: ./backend
     container_name: backend
     env_file:
-      - ./backend/.env.docker
+      - ./backend/.env
     environment:
       ML_BASE_URL: http://ml:9000
+      DB_HOST: mysql
     ports:
       - "8000:8000"
     volumes:

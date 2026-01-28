@@ -7,7 +7,11 @@ type LoginFormInputs = {
 };
 
 export default function LoginForm() {
-  const { register, handleSubmit } = useForm<LoginFormInputs>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+  } = useForm<LoginFormInputs>();
 
   const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
     // Next.js API Route에서 accessToken 쿠키를 HttpOnly로 설정
@@ -47,20 +51,34 @@ export default function LoginForm() {
       {/* 폼 */}
       <form className='space-y-4' onSubmit={handleSubmit(onSubmit)}>
         <input
-          {...register('email')}
+          {...register('email', {
+            required: '이메일은 필수 입력 항목입니다.',
+          })}
           type='email'
           placeholder='engineer@battery-monitor.com'
           className='w-full rounded-xl bg-black/30 border border-green-900 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500'
         />
+        {errors.email && (
+          <p className='text-xs text-red-500 mt-1'>{errors.email.message}</p>
+        )}
 
         <input
-          {...register('password')}
+          {...register('password', {
+            required: '비밀번호는 필수 입력 항목입니다.',
+          })}
           type='password'
           placeholder='••••••••'
           className='w-full rounded-xl bg-black/30 border border-green-900 px-4 py-3'
         />
+        {errors.password && (
+          <p className='text-xs text-red-500 mt-1'>{errors.password.message}</p>
+        )}
 
-        <button className='w-full flex items-center justify-center gap-2 rounded-xl bg-green-400 py-4 font-semibold text-black hover:bg-green-300'>
+        <button
+          className='w-full rounded-xl bg-green-400 py-4 font-semibold text-black
+		    disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed'
+          disabled={!isValid}
+        >
           로그인 ⚡
         </button>
       </form>

@@ -1,9 +1,12 @@
 'use client';
 
+import { useUser } from '@/app/context/UserContext';
 import SettingItem from '@/components/dashboard/settings/SettingItem';
 import SettingSection from '@/components/dashboard/settings/SettingSection';
 
 export default function SettingsPage() {
+  const { user } = useUser();
+
   async function handleLogout() {
     const res = await fetch('/api/auth/logout', { method: 'POST' });
     const result = await res.json();
@@ -21,7 +24,7 @@ export default function SettingsPage() {
       <h1 className='text-xl font-semibold'>설정</h1>
 
       <SettingSection title='계정'>
-        <SettingItem label='이메일' value='engineer@battery.com' />
+        <SettingItem label='이메일' value={user?.email} />
         <SettingItem label='비밀번호 변경' action={() => {}} />
       </SettingSection>
 

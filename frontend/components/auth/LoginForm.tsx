@@ -75,7 +75,7 @@ export default function LoginForm() {
         )}
 
         <button
-          className='w-full rounded-xl bg-green-400 py-4 font-semibold text-black
+          className='w-full rounded-xl bg-green-400 py-4 font-semibold text-black cursor-pointer
 		    disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed'
           disabled={!isValid}
         >

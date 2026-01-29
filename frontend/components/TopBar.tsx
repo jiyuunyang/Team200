@@ -1,5 +1,6 @@
 // components/dashboard/TopBar.tsx
 import { Settings } from 'lucide-react';
+import Link from 'next/link';
 
 export default function TopBar() {
   return (
@@ -9,9 +10,12 @@ export default function TopBar() {
         <h1 className='font-semibold'>배터리 헬스 대시보드</h1>
       </div>
 
-      <button className='text-gray-400 hover:text-green-400'>
+      <Link
+        href='/settings'
+        className='text-gray-400 hover:text-green-400 cursor-pointer'
+      >
         <Settings size={20} />
-      </button>
+      </Link>
     </header>
   );
 }

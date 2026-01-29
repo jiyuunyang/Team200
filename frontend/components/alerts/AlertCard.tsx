@@ -6,7 +6,9 @@ export default function AlertCard({ message }: { message: string }) {
           ⚠️ {message}
         </p>
         <div className='flex justify-end mt-3'>
-          <button className=' text-green-400 font-semibold'>상세보기 →</button>
+          <button className=' text-green-400 font-semibold cursor-pointer'>
+            상세보기 →
+          </button>
         </div>
       </div>
     </section>

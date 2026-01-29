@@ -8,10 +8,12 @@ from app.auth.schemas import (
     LoginResponse,
     SignupRequest,
     SignupResponse,
+    UserResponse
 )
 from app.auth.service import login_user, signup_user
 from app.auth.dependencies import get_current_user
 from app.db.dependencies import get_db
+from app.db.models import User
 
 router = APIRouter(tags=["Auth"])
 
@@ -48,9 +50,6 @@ def login(
 
 
 # ===== Me =====
-@router.get("/me")
-def read_me(current_user: dict = Depends(get_current_user)):
-    return {
-        "user_id": current_user.get("user_id"),
-        "email": current_user.get("email"),
-    }
+@router.get("/me", response_model=UserResponse)
+def read_me(current_user: User = Depends(get_current_user)):
+    return current_user

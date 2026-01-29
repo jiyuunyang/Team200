@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 # 로그 바로 출력
 ENV PYTHONUNBUFFERED=1
@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 8000
 
 # 이건 stage나 dev나 어떤 환경에서든 들어갈 명령어니까 프로세스는 재시작 안할래. compose에서 override할래.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]  
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]  

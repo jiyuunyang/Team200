@@ -1,13 +1,11 @@
 import AlertCard from '@/components/alerts/AlertCard';
-import AddBattery from '@/components/dashboard/AddBattery';
+import AddBatteryButton from '@/components/dashboard/AddBatteryButton';
 import BatteryListSection from '@/components/dashboard/BatteryListSection';
 
 export default async function DashboardPage() {
   // 임시 알림 데이터
-  const summary = {
-    soh: 94,
-    rul: 14,
-    alert: '배터리 온도 편차 감지',
+  const alert = {
+    message: '배터리 온도 편차 감지',
   };
   // 임시 배터리 데이터
   const batteryList = [
@@ -19,9 +17,9 @@ export default async function DashboardPage() {
   return (
     <div className='space-y-6 pt-6'>
       {/* 알림 카드 */}
-      <AlertCard message={summary.alert} />
+      <AlertCard message={alert.message} />
       <BatteryListSection batteryList={batteryList} />
-      <AddBattery />
+      <AddBatteryButton />
     </div>
   );
 }

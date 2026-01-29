@@ -1,8 +1,9 @@
 'use client';
 
 import { useUser } from '@/app/context/UserContext';
-import SettingItem from '@/components/dashboard/settings/SettingItem';
-import SettingSection from '@/components/dashboard/settings/SettingSection';
+import SettingItem from '@/components/settings/SettingItem';
+import SettingSection from '@/components/settings/SettingSection';
+import SettingSwitch from '@/components/settings/SettingSwitch';
 
 export default function SettingsPage() {
   const { user } = useUser();
@@ -29,8 +30,8 @@ export default function SettingsPage() {
       </SettingSection>
 
       <SettingSection title='알림'>
-        <SettingItem label='이메일 알림' action={() => {}} />
-        <SettingItem label='위험 알림 푸시' action={() => {}} />
+        <SettingSwitch label='이메일 알림' action={() => {}} />
+        <SettingSwitch label='위험 알림 푸시' action={() => {}} />
       </SettingSection>
 
       <SettingSection title='시스템'>

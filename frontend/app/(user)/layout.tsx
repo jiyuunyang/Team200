@@ -1,8 +1,8 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import TopBar from '@/components/dashboard/TopBar';
-import BottomNav from '@/components/dashboard/BottomNav';
+import TopBar from '@/components/TopBar';
+import BottomNav from '@/components/BottomNav';
 import { getMe } from '@/lib/service/auth';
 import { UserProvider } from '../context/UserContext';
 

@@ -24,3 +24,11 @@ class SignupRequest(BaseModel):
 class SignupResponse(BaseModel):
     message: str
     user_id: int
+
+class UserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    name: str
+
+    class Config:
+        orm_mode = True

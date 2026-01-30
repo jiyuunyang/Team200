@@ -1,5 +1,5 @@
-import MetricCard from '@/components/dashboard/analysis/MetricCard';
-import SOHTrendChart from '@/components/dashboard/analysis/SOHTrendChart';
+import MetricCard from '@/components/analysis/MetricCard';
+import SOHTrendChart from '@/components/analysis/SOHTrendChart';
 
 export default async function DetailPage({
   params,

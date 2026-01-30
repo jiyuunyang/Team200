@@ -15,7 +15,7 @@ export default function SettingItem({
       {value && <span className='text-sm text-gray-400'>{value}</span>}
       {action && (
         <button
-          className={`text-sm ${danger ? 'text-red-400' : 'text-green-400'}`}
+          className={`text-sm ${danger ? 'text-red-400' : 'text-green-400'} cursor-pointer`}
           onClick={action}
         >
           {label}

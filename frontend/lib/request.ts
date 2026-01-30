@@ -4,7 +4,7 @@ export type ApiResponse<T = any> = {
 	data?: T;
 };
 
-const API_URL = "http://localhost/backend"; // Nginx 설정에 맞춘 백엔드 기본 URL
+const API_URL = process.env.API_URL;
 
 export async function apiRequest<T>(
 	endpoint: string,

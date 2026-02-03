@@ -41,3 +41,4 @@ class Battery(Base):
         back_populates="battery",
         cascade="all, delete-orphan",
     )
+

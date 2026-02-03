@@ -30,3 +30,16 @@ class BatteryCycleResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class BatteryFileUploadResponse(BaseModel):
+    id: int
+    battery_id: int
+    user_id: int
+    original_filename: str
+    file_ext: str
+    file_size: int
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True  # pydantic v2
+        

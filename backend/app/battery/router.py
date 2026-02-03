@@ -168,7 +168,7 @@ def get_or_create_battery(
 # POST /batteries/uploads
 # form-data: battery_name, file
 # - battery 없으면 자동 생성
-# - data/user_{id}/{battery_name}/raw/{time}.csv 저장
+# - data/user_{id}/{battery_name}/{time}.csv 저장
 # -------------------------
 @router.post(
     "/uploads",
@@ -177,11 +177,10 @@ def get_or_create_battery(
 )
 async def upload_battery_file(
     battery_name: str = Form(...),
-    file: UploadFile = File(...),
+    battery_file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    print("UPLOAD API ENTERED")  # 👈 이게 찍히는지
     battery_name = battery_name.strip()
     if not battery_name:
         raise HTTPException(status_code=400, detail="battery_name is required")
@@ -192,7 +191,7 @@ async def upload_battery_file(
     # 2) 파일 저장 준비(이름 기반 폴더)
     try:
         raw_dir = ensure_battery_dir(current_user.id, battery_name)
-        filename, ext = build_filename(file.filename or "upload.csv")
+        filename, ext = build_filename(battery_file.filename or "upload.csv")
         save_path = raw_dir / filename
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -202,19 +201,19 @@ async def upload_battery_file(
     try:
         with open(save_path, "wb") as f:
             while True:
-                chunk = await file.read(1024 * 1024)  # 1MB
+                chunk = await battery_file.read(1024 * 1024)  # 1MB
                 if not chunk:
                     break
                 f.write(chunk)
                 total += len(chunk)
     finally:
-        await file.close()
+        await battery_file.close()
 
     # 4) 업로드 로그 저장
     upload = BatteryFileUpload(
         battery_id=battery.id,
         user_id=current_user.id,
-        original_filename=file.filename or "unknown",
+        original_filename=battery_file.filename or "unknown",
         stored_path=str(save_path),
         file_ext=ext,
         file_size=total,
@@ -232,7 +231,7 @@ async def upload_battery_file(
 
 # -------------------------
 # 업로드 로그 목록
-# GET /batteries/{battery_id}/uploads
+# GET /batteries/{battery_name}/uploads
 # -------------------------
 @router.get(
     "/{battery_id}/uploads",

@@ -1,8 +1,12 @@
+import Link from 'next/link';
+
 export default function BatteryCard({
+  id,
   title,
   checked,
   rul,
 }: {
+  id: number;
   title: string;
   checked: string;
   rul: number;
@@ -19,9 +23,11 @@ export default function BatteryCard({
 
       <div className='flex flex-col items-center gap-4'>
         <Circle value={rul} />
-        <button className='bg-green-400 text-black px-5 py-2 rounded-full text-sm font-bold cursor-pointer'>
-          상세 분석
-        </button>
+        <Link href={`/analysis/${id}`}>
+          <button className='bg-green-400 text-black px-5 py-2 rounded-full text-sm font-bold cursor-pointer'>
+            상세 분석
+          </button>
+        </Link>
       </div>
     </div>
   );

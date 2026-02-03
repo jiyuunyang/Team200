@@ -19,6 +19,7 @@ export default function BatteryListSection({
           <BatteryCard
             //TODO: 배터리 이름, 마지막 측정일, RUL 데이터로 변경 필요
             key={battery.id}
+            id={battery.id}
             title={battery.battery_name}
             checked={battery.has_data ? '데이터 있음' : '데이터 없음'}
             rul={battery.id}

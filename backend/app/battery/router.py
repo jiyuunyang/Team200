@@ -84,10 +84,7 @@ def create_battery_cycle(
 ):
     battery = (
         db.query(Battery)
-        .filter(
-            Battery.id == battery_id,
-            Battery.user_id == current_user.id,
-        )
+        .filter(Battery.id == battery_id, Battery.user_id == current_user.id)
         .first()
     )
     if not battery:
@@ -98,6 +95,7 @@ def create_battery_cycle(
         cycle_index=data.cycle_index,
         features=data.features,
     )
+
     db.add(cycle)
 
     if not battery.has_data:
@@ -119,10 +117,7 @@ def list_battery_cycles(
 ):
     battery = (
         db.query(Battery)
-        .filter(
-            Battery.id == battery_id,
-            Battery.user_id == current_user.id,
-        )
+        .filter(Battery.id == battery_id, Battery.user_id == current_user.id)
         .first()
     )
     if not battery:
@@ -136,10 +131,9 @@ def list_battery_cycles(
     )
 
 
-#===== 수범 추가 시작 =====#
-# -------------------------
-# 내부: battery_name 기준 get-or-create
-# -------------------------
+# ======================================
+# Internal utility (get or create battery)
+# ======================================
 def get_or_create_battery(
     db: Session,
     user_id: int,
@@ -167,13 +161,9 @@ def get_or_create_battery(
     return battery
 
 
-# -------------------------
-# 업로드 (핵심)
-# POST /batteries/uploads
-# form-data: battery_name, file
-# - battery 없으면 자동 생성
-# - data/user_{id}/{battery_name}/{time}.csv 저장
-# -------------------------
+# ====================
+# File Upload
+# ====================
 @router.post(
     "/uploads",
     response_model=BatteryFileUploadResponse,
@@ -189,23 +179,24 @@ async def upload_battery_file(
     if not battery_name:
         raise HTTPException(status_code=400, detail="battery_name is required")
 
-    # 1) Battery 컨테이너 확보(없으면 생성)
+    # CSV 확장자 검사
+    if not battery_file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only CSV files are allowed")
+
+    # Battery 확보(없으면 생성)
     battery = get_or_create_battery(db, current_user.id, battery_name)
 
-    # 2) 파일 저장 준비(이름 기반 폴더)
-    try:
-        raw_dir = ensure_battery_dir(current_user.id, battery_name)
-        filename, ext = build_filename(battery_file.filename or "upload.csv")
-        save_path = raw_dir / filename
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    # 저장 경로 생성
+    raw_dir = ensure_battery_dir(current_user.id, battery_name)
+    filename, ext = build_filename(battery_file.filename)
+    save_path = raw_dir / filename
 
-    # 3) 파일 저장(스트리밍)
+    # 파일 저장
     total = 0
     try:
         with open(save_path, "wb") as f:
             while True:
-                chunk = await battery_file.read(1024 * 1024)  # 1MB
+                chunk = await battery_file.read(1024 * 1024)
                 if not chunk:
                     break
                 f.write(chunk)
@@ -213,18 +204,17 @@ async def upload_battery_file(
     finally:
         await battery_file.close()
 
-    # 4) 업로드 로그 저장
+    # DB에 기록
     upload = BatteryFileUpload(
         battery_id=battery.id,
         user_id=current_user.id,
-        original_filename=battery_file.filename or "unknown",
+        original_filename=battery_file.filename,
         stored_path=str(save_path),
         file_ext=ext,
         file_size=total,
     )
     db.add(upload)
 
-    # 5) has_data 업데이트
     if not battery.has_data:
         battery.has_data = True
 
@@ -234,7 +224,7 @@ async def upload_battery_file(
 
 
 # ====================
-# RUL Prediction (CSV 기반, 전체 저장)
+# RUL Prediction
 # ====================
 @router.post("/{battery_id}/rul")
 def predict_battery_rul(
@@ -243,22 +233,15 @@ def predict_battery_rul(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """
-    - ML 예측 결과 전체를 DB에 저장
-    - 응답도 ML 결과 + backend 계산 필드 전부 반환
-    """
-
     battery = (
         db.query(Battery)
-        .filter(
-            Battery.id == battery_id,
-            Battery.user_id == current_user.id,
-        )
+        .filter(Battery.id == battery_id, Battery.user_id == current_user.id)
         .first()
     )
     if not battery:
         raise HTTPException(status_code=404, detail="Battery not found")
 
+    # 실제 backendWorkspace 경로인지 확인
     if not csv_path.startswith("/backendWorkspace/data"):
         raise HTTPException(status_code=400, detail="Invalid csv_path")
 
@@ -268,17 +251,15 @@ def predict_battery_rul(
         1,
     )
 
-    # 1️⃣ ML 호출
+    # ML 결과
     ml_result = predict_rul(ml_csv_path)
-
     if "rul" not in ml_result:
         raise HTTPException(status_code=500, detail="Invalid ML response")
 
-    # 2️⃣ backend 파생 값
     rul = float(ml_result["rul"])
     rul_status = calc_rul_status(rul)
 
-    # 3️⃣ DB 저장
+    # DB 저장
     battery_rul = BatteryRUL(
         battery_id=battery.id,
         battery_file_upload_id=ml_result.get("battery_file_upload_id"),
@@ -292,12 +273,10 @@ def predict_battery_rul(
         inference_time=ml_result.get("inference_time"),
         raw_response=ml_result,
     )
-
     db.add(battery_rul)
     db.commit()
     db.refresh(battery_rul)
 
-    # 4️⃣ 전체 응답 반환
     return {
         "battery_id": battery.id,
         "battery_rul_id": battery_rul.id,
@@ -308,17 +287,8 @@ def predict_battery_rul(
 
 
 # ====================
-# Internal Utils
+# Upload List
 # ====================
-def get_or_create_battery(
-    db: Session,
-    user_id: int,
-    battery_name: str,
-) -> Battery:
-# -------------------------
-# 업로드 로그 목록
-# GET /batteries/{battery_name}/uploads.  --> 배터리 이름에 대한 파일 목록 조회
-# -------------------------
 @router.get(
     "/{battery_id}/uploads",
     response_model=List[BatteryFileUploadResponse],
@@ -347,10 +317,9 @@ def list_uploads(
     )
 
 
-# -------------------------
-# 다운로드
-# GET /batteries/{battery_id}/uploads/{upload_id}/download  --> csv 파일 다운로드
-# -------------------------
+# ====================
+# File Download
+# ====================
 @router.get("/{battery_id}/uploads/{upload_id}/download")
 def download_upload(
     battery_id: int,
@@ -358,7 +327,6 @@ def download_upload(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # join으로 소유권+업로드 한번에 검증
     upload = (
         db.query(BatteryFileUpload)
         .join(Battery, Battery.id == BatteryFileUpload.battery_id)
@@ -380,5 +348,5 @@ def download_upload(
     return FileResponse(
         path=str(path),
         filename=path.name,
-        media_type="application/octet-stream",
+        media_type="text/csv",
     )

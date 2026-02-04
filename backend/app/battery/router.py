@@ -1,29 +1,35 @@
 # backend/app/battery/router.py
 
 from typing import List
-
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.db.dependencies import get_db
-from app.db.models import Battery, BatteryCycle, User, BatteryFileUpload
+from app.db.models import (
+    Battery,
+    BatteryCycle,
+    BatteryFileUpload,
+    User,
+)
 from app.auth.dependencies import get_current_user
 from app.battery.schemas import (
     BatteryCreateRequest,
     BatteryResponse,
     BatteryCycleCreate,
     BatteryCycleResponse,
-    BatteryFileUploadResponse
+    BatteryFileUploadResponse,
 )
-
-from pathlib import Path
 from app.utils.storage import ensure_battery_dir, build_filename
 
 router = APIRouter(tags=["Battery"])
 
-# 배터리 생성
+
+# ====================
+# Battery
+# ====================
 @router.post("", response_model=BatteryResponse, status_code=201)
 def create_battery(
     data: BatteryCreateRequest,
@@ -35,31 +41,28 @@ def create_battery(
         battery_name=data.battery_name,
         has_data=False,
     )
-
     db.add(battery)
     db.commit()
     db.refresh(battery)
-
     return battery
 
 
-# 배터리 목록 조회 (기존 그대로 OK)
 @router.get("", response_model=List[BatteryResponse])
 def list_batteries(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    batteries = (
+    return (
         db.query(Battery)
         .filter(Battery.user_id == current_user.id)
         .order_by(Battery.created_at.desc())
         .all()
     )
 
-    return batteries
 
-
-# 배터리 cycle + feature(JSON) 추가 (핵심 추가)
+# ====================
+# Battery Cycle
+# ====================
 @router.post(
     "/{battery_id}/cycles",
     response_model=BatteryCycleResponse,
@@ -71,7 +74,6 @@ def create_battery_cycle(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # 1️⃣ 배터리 소유권 확인
     battery = (
         db.query(Battery)
         .filter(
@@ -80,30 +82,24 @@ def create_battery_cycle(
         )
         .first()
     )
-
     if not battery:
         raise HTTPException(status_code=404, detail="Battery not found")
 
-    # 2️⃣ cycle 생성
     cycle = BatteryCycle(
         battery_id=battery.id,
         cycle_index=data.cycle_index,
         features=data.features,
     )
-
     db.add(cycle)
 
-    # 3️⃣ 첫 데이터면 has_data true
     if not battery.has_data:
         battery.has_data = True
 
     db.commit()
     db.refresh(cycle)
-
     return cycle
 
 
-# 배터리별 cycle 조회 API
 @router.get(
     "/{battery_id}/cycles",
     response_model=List[BatteryCycleResponse],
@@ -121,7 +117,6 @@ def list_battery_cycles(
         )
         .first()
     )
-
     if not battery:
         raise HTTPException(status_code=404, detail="Battery not found")
 
@@ -131,6 +126,7 @@ def list_battery_cycles(
         .order_by(BatteryCycle.cycle_index)
         .all()
     )
+
 
 #===== 수범 추가 시작 =====#
 # -------------------------
@@ -231,7 +227,7 @@ async def upload_battery_file(
 
 # -------------------------
 # 업로드 로그 목록
-# GET /batteries/{battery_name}/uploads
+# GET /batteries/{battery_name}/uploads.  --> 배터리 이름에 대한 파일 목록 조회
 # -------------------------
 @router.get(
     "/{battery_id}/uploads",
@@ -263,7 +259,7 @@ def list_uploads(
 
 # -------------------------
 # 다운로드
-# GET /batteries/{battery_id}/uploads/{upload_id}/download
+# GET /batteries/{battery_id}/uploads/{upload_id}/download  --> csv 파일 다운로드
 # -------------------------
 @router.get("/{battery_id}/uploads/{upload_id}/download")
 def download_upload(

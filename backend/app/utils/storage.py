@@ -31,5 +31,7 @@ def build_filename(original_filename: str) -> tuple[str, str]:
     if ext not in ALLOWED_EXT:
         raise ValueError(f"unsupported extension: {ext}")
 
-    ts = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d_%H:%M:%S")
+    # 이나: 윈도우에서 ':' 문자가 파일명에 허용되지 않음 -> 수정 (260204)
+    # strftime("%Y-%m-%d_%H:%M:%S") ->  "%Y-%m-%d_%H-%M-%S"
+    ts = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d_%H-%M-%S")
     return f"{ts}{ext}", ext

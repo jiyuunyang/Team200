@@ -21,7 +21,7 @@ export default function BottomNav() {
         return (
           <a
             key={href}
-            href={href}
+            href={href === '/analysis' ? '/dashboard' : href}
             className={`flex flex-col items-center text-xs ${
               active ? 'text-green-400' : 'text-gray-500'
             }`}

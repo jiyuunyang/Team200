@@ -34,7 +34,6 @@ services:
       - mysql
 
   ml:
-    platform: linux/amd64
     build:
       context: ./ml
     container_name: ml

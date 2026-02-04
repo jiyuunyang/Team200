@@ -1,3 +1,5 @@
+# backend/app/battery/router.py
+
 from typing import List
 from fastapi import (
     APIRouter,
@@ -15,7 +17,6 @@ from app.db.models import (
     Battery,
     BatteryCycle,
     BatteryFileUpload,
-    BatteryRUL,
     User,
 )
 from app.auth.dependencies import get_current_user
@@ -25,6 +26,7 @@ from app.battery.schemas import (
     BatteryCycleCreate,
     BatteryCycleResponse,
     BatteryFileUploadResponse,
+    RULCheckResponse,
 )
 from app.utils.storage import ensure_battery_dir, build_filename
 from app.utils.ml_client import predict_rul
@@ -185,9 +187,12 @@ async def upload_battery_file(
 
 
 # ====================
-# RUL Prediction (CSV 기반, 전체 저장)
+# RUL Prediction (TEMPORARY)
 # ====================
-@router.post("/{battery_id}/rul")
+@router.post(
+    "/{battery_id}/rul",
+    response_model=RULCheckResponse,
+)
 def predict_battery_rul(
     battery_id: int,
     csv_path: str = Form(...),
@@ -195,8 +200,9 @@ def predict_battery_rul(
     current_user: User = Depends(get_current_user),
 ):
     """
-    - ML 예측 결과 전체를 DB에 저장
-    - 응답도 ML 결과 + backend 계산 필드 전부 반환
+    NOTE:
+    - CSV 경로 기반 RUL 예측은 임시 API
+    - 추후 cycle / feature 기반 예측으로 대체 예정
     """
 
     battery = (
@@ -211,7 +217,10 @@ def predict_battery_rul(
         raise HTTPException(status_code=404, detail="Battery not found")
 
     if not csv_path.startswith("/backendWorkspace/data"):
-        raise HTTPException(status_code=400, detail="Invalid csv_path")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid csv_path",
+        )
 
     ml_csv_path = csv_path.replace(
         "/backendWorkspace/data",
@@ -219,42 +228,21 @@ def predict_battery_rul(
         1,
     )
 
-    # 1️⃣ ML 호출
-    ml_result = predict_rul(ml_csv_path)
+    result = predict_rul(ml_csv_path)
 
-    if "rul" not in ml_result:
-        raise HTTPException(status_code=500, detail="Invalid ML response")
+    if "rul" not in result:
+        raise HTTPException(
+            status_code=500,
+            detail="Invalid ML response",
+        )
 
-    # 2️⃣ backend 파생 값
-    rul = float(ml_result["rul"])
+    rul = float(result["rul"])
     rul_status = calc_rul_status(rul)
 
-    # 3️⃣ DB 저장
-    battery_rul = BatteryRUL(
-        battery_id=battery.id,
-        battery_file_upload_id=ml_result.get("battery_file_upload_id"),
-        rul=rul,
-        rul_status=rul_status,
-        model=ml_result.get("model"),
-        model_version=ml_result.get("model_version"),
-        sequence_length=ml_result.get("sequence_length"),
-        feature_count=ml_result.get("feature_count"),
-        latency_ms=ml_result.get("latency_ms"),
-        inference_time=ml_result.get("inference_time"),
-        raw_response=ml_result,
-    )
-
-    db.add(battery_rul)
-    db.commit()
-    db.refresh(battery_rul)
-
-    # 4️⃣ 전체 응답 반환
     return {
-        "battery_id": battery.id,
-        "battery_rul_id": battery_rul.id,
-        **ml_result,
+        "battery_id": battery_id,
+        "rul": rul,
         "rul_status": rul_status,
-        "created_at": battery_rul.created_at,
     }
 
 

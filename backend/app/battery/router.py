@@ -34,7 +34,6 @@ from app.battery.service import calc_rul_status
 
 router = APIRouter(tags=["Battery"])
 
-
 # ====================
 # Battery
 # ====================
@@ -54,7 +53,6 @@ def create_battery(
     db.refresh(battery)
     return battery
 
-
 @router.get("", response_model=List[BatteryResponse])
 def list_batteries(
     db: Session = Depends(get_db),
@@ -66,7 +64,6 @@ def list_batteries(
         .order_by(Battery.created_at.desc())
         .all()
     )
-
 
 # ====================
 # Battery Cycle
@@ -97,14 +94,12 @@ def create_battery_cycle(
     )
 
     db.add(cycle)
-
     if not battery.has_data:
         battery.has_data = True
 
     db.commit()
     db.refresh(cycle)
     return cycle
-
 
 @router.get(
     "/{battery_id}/cycles",
@@ -129,7 +124,6 @@ def list_battery_cycles(
         .order_by(BatteryCycle.cycle_index)
         .all()
     )
-
 
 # ======================================
 # Internal utility (get or create battery)
@@ -159,7 +153,6 @@ def get_or_create_battery(
     db.commit()
     db.refresh(battery)
     return battery
-
 
 # ====================
 # File Upload
@@ -214,7 +207,6 @@ async def upload_battery_file(
         file_size=total,
     )
     db.add(upload)
-
     if not battery.has_data:
         battery.has_data = True
 
@@ -222,36 +214,34 @@ async def upload_battery_file(
     db.refresh(upload)
     return upload
 
-
 # ====================
 # RUL Prediction
 # ====================
-@router.post("/{battery_id}/rul")
+@router.get("/{battery_id}/uploads/{upload_id}/rul")
 def predict_battery_rul(
     battery_id: int,
-    csv_path: str = Form(...),
+    upload_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    battery = (
-        db.query(Battery)
-        .filter(Battery.id == battery_id, Battery.user_id == current_user.id)
+    # DB에서 업로드 정보 가져오기
+    upload = (
+        db.query(BatteryFileUpload)
+        .filter(
+            BatteryFileUpload.id == upload_id,
+            BatteryFileUpload.battery_id == battery_id,
+            BatteryFileUpload.user_id == current_user.id,
+        )
         .first()
     )
-    if not battery:
-        raise HTTPException(status_code=404, detail="Battery not found")
 
-    # 실제 backendWorkspace 경로인지 확인
-    if not csv_path.startswith("/backendWorkspace/data"):
-        raise HTTPException(status_code=400, detail="Invalid csv_path")
+    if not upload:
+        raise HTTPException(status_code=404, detail="File not found")
 
-    ml_csv_path = csv_path.replace(
-        "/backendWorkspace/data",
-        "/mlWorkspace/data",
-        1,
-    )
+    # stored_path 그대로 사용
+    ml_csv_path = upload.stored_path
 
-    # ML 결과
+    # ML 실행
     ml_result = predict_rul(ml_csv_path)
     if "rul" not in ml_result:
         raise HTTPException(status_code=500, detail="Invalid ML response")
@@ -261,8 +251,8 @@ def predict_battery_rul(
 
     # DB 저장
     battery_rul = BatteryRUL(
-        battery_id=battery.id,
-        battery_file_upload_id=ml_result.get("battery_file_upload_id"),
+        battery_id=battery_id,
+        battery_file_upload_id=upload_id,
         rul=rul,
         rul_status=rul_status,
         model=ml_result.get("model"),
@@ -278,13 +268,13 @@ def predict_battery_rul(
     db.refresh(battery_rul)
 
     return {
-        "battery_id": battery.id,
+        "battery_id": battery_id,
         "battery_rul_id": battery_rul.id,
+        "upload_id": upload_id,
         **ml_result,
         "rul_status": rul_status,
         "created_at": battery_rul.created_at,
     }
-
 
 # ====================
 # Upload List
@@ -316,7 +306,6 @@ def list_uploads(
         .all()
     )
 
-
 # ====================
 # File Download
 # ====================
@@ -329,15 +318,14 @@ def download_upload(
 ):
     upload = (
         db.query(BatteryFileUpload)
-        .join(Battery, Battery.id == BatteryFileUpload.battery_id)
         .filter(
-            Battery.id == battery_id,
-            Battery.user_id == current_user.id,
             BatteryFileUpload.id == upload_id,
+            BatteryFileUpload.battery_id == battery_id,
             BatteryFileUpload.user_id == current_user.id,
         )
         .first()
     )
+
     if not upload:
         raise HTTPException(status_code=404, detail="File not found")
 

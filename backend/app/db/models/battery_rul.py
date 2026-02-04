@@ -1,5 +1,3 @@
-# backend/app/db/models/battery_rul.py
-
 from sqlalchemy import Integer, Float, String, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
@@ -21,10 +19,10 @@ class BatteryRUL(Base):
     )
 
     rul: Mapped[float]
-    rul_status: Mapped[int]
+    rul_status: Mapped[str] = mapped_column(String(50))  # 문자열로 변경, 길이 지정
 
-    model: Mapped[str | None]
-    model_version: Mapped[str | None]
+    model: Mapped[str | None] = mapped_column(String(255))  # 길이 지정
+    model_version: Mapped[str | None] = mapped_column(String(50))  # 길이 지정
 
     sequence_length: Mapped[int | None]
     feature_count: Mapped[int | None]

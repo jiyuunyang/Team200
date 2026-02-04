@@ -27,7 +27,8 @@ services:
       - '8000:8000'
     volumes:
       - ./backend:/backendWorkspace
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload # dev 환경에서만 프로세스 재시작할래.
+      - ./backend/data:/backend/data # <- backend/data 마운트 추가
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       - ml
       - mysql
@@ -41,7 +42,8 @@ services:
       - '9000:9000'
     volumes:
       - ./ml:/mlWorkspace
-      - ./backend/data:/mlWorkspace/data
+      - ./backend/data:/mlWorkspace/data # <- 같은 데이터 공유
+      # 필요시 ML 환경변수 추가
 
   mysql:
     image: mysql:8.0

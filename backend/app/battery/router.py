@@ -1,23 +1,26 @@
-# backend/app/battery/router.py
-
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.dependencies import get_db
-from app.db.models import Battery, BatteryCycle, User
+from app.db.models import Battery, BatteryCycle, BatteryRUL, User
 from app.auth.dependencies import get_current_user
 from app.battery.schemas import (
     BatteryCreateRequest,
     BatteryResponse,
     BatteryCycleCreate,
     BatteryCycleResponse,
+    RULCreateRequest,
+    RULCheckResponse,
 )
 
 router = APIRouter(prefix="/batteries", tags=["Battery"])
 
-# 배터리 생성
+
+# ====================
+# Battery
+# ====================
 @router.post("", response_model=BatteryResponse, status_code=201)
 def create_battery(
     data: BatteryCreateRequest,
@@ -37,23 +40,22 @@ def create_battery(
     return battery
 
 
-# 배터리 목록 조회 (기존 그대로 OK)
 @router.get("", response_model=List[BatteryResponse])
 def list_batteries(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    batteries = (
+    return (
         db.query(Battery)
         .filter(Battery.user_id == current_user.id)
         .order_by(Battery.created_at.desc())
         .all()
     )
 
-    return batteries
 
-
-# 배터리 cycle + feature(JSON) 추가 (핵심 추가)
+# ====================
+# Battery Cycle
+# ====================
 @router.post(
     "/{battery_id}/cycles",
     response_model=BatteryCycleResponse,
@@ -65,7 +67,6 @@ def create_battery_cycle(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # 1️⃣ 배터리 소유권 확인
     battery = (
         db.query(Battery)
         .filter(
@@ -78,7 +79,6 @@ def create_battery_cycle(
     if not battery:
         raise HTTPException(status_code=404, detail="Battery not found")
 
-    # 2️⃣ cycle 생성
     cycle = BatteryCycle(
         battery_id=battery.id,
         cycle_index=data.cycle_index,
@@ -87,7 +87,6 @@ def create_battery_cycle(
 
     db.add(cycle)
 
-    # 3️⃣ 첫 데이터면 has_data true
     if not battery.has_data:
         battery.has_data = True
 
@@ -97,7 +96,6 @@ def create_battery_cycle(
     return cycle
 
 
-# 배터리별 cycle 조회 API
 @router.get(
     "/{battery_id}/cycles",
     response_model=List[BatteryCycleResponse],
@@ -125,3 +123,56 @@ def list_battery_cycles(
         .order_by(BatteryCycle.cycle_index)
         .all()
     )
+
+
+# ====================
+# Battery RUL (일회성 상태)
+# ====================
+@router.post(
+    "/{battery_id}/rul",
+    response_model=RULCheckResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_battery_rul(
+    battery_id: int,
+    data: RULCreateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    battery = (
+        db.query(Battery)
+        .filter(
+            Battery.id == battery_id,
+            Battery.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not battery:
+        raise HTTPException(status_code=404, detail="Battery not found")
+
+    # 1️⃣ rul_status 계산
+    if data.rul <= 0.1:
+        rul_status = 3
+    elif data.rul <= 0.2:
+        rul_status = 2
+    elif data.rul <= 0.3:
+        rul_status = 1
+    else:
+        rul_status = 0
+
+    # 2️⃣ DB 저장
+    rul_record = BatteryRUL(
+        battery_id=battery.id,
+        rul=data.rul,
+        rul_status=rul_status,
+    )
+    db.add(rul_record)
+    db.commit()
+
+    # 3️⃣ 응답
+    return {
+        "battery_id": battery.id,
+        "rul": data.rul,
+        "rul_status": rul_status,
+    }

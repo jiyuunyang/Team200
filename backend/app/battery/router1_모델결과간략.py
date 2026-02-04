@@ -1,5 +1,6 @@
+# backend/app/battery/router.py
+
 from typing import List
-from pathlib import Path
 from fastapi import (
     APIRouter,
     Depends,
@@ -9,7 +10,6 @@ from fastapi import (
     File,
     Form,
 )
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.db.dependencies import get_db
@@ -17,7 +17,6 @@ from app.db.models import (
     Battery,
     BatteryCycle,
     BatteryFileUpload,
-    BatteryRUL,
     User,
 )
 from app.auth.dependencies import get_current_user
@@ -27,6 +26,7 @@ from app.battery.schemas import (
     BatteryCycleCreate,
     BatteryCycleResponse,
     BatteryFileUploadResponse,
+    RULCheckResponse,
 )
 from app.utils.storage import ensure_battery_dir, build_filename
 from app.utils.ml_client import predict_rul
@@ -136,10 +136,119 @@ def list_battery_cycles(
     )
 
 
-#===== 수범 추가 시작 =====#
-# -------------------------
-# 내부: battery_name 기준 get-or-create
-# -------------------------
+# ====================
+# CSV Upload
+# ====================
+@router.post(
+    "/uploads",
+    response_model=BatteryFileUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_battery_file(
+    battery_name: str = Form(...),
+    battery_file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    battery = get_or_create_battery(db, current_user.id, battery_name)
+
+    raw_dir = ensure_battery_dir(current_user.id, battery_name)
+    filename, ext = build_filename(battery_file.filename or "upload.csv")
+    save_path = raw_dir / filename
+
+    total = 0
+    try:
+        with open(save_path, "wb") as f:
+            while True:
+                chunk = await battery_file.read(1024 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+                total += len(chunk)
+    finally:
+        await battery_file.close()
+
+    upload = BatteryFileUpload(
+        battery_id=battery.id,
+        user_id=current_user.id,
+        original_filename=battery_file.filename or "unknown",
+        stored_path=str(save_path),
+        file_ext=ext,
+        file_size=total,
+    )
+    db.add(upload)
+
+    if not battery.has_data:
+        battery.has_data = True
+
+    db.commit()
+    db.refresh(upload)
+    return upload
+
+
+# ====================
+# RUL Prediction (TEMPORARY)
+# ====================
+@router.post(
+    "/{battery_id}/rul",
+    response_model=RULCheckResponse,
+)
+def predict_battery_rul(
+    battery_id: int,
+    csv_path: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    NOTE:
+    - CSV 경로 기반 RUL 예측은 임시 API
+    - 추후 cycle / feature 기반 예측으로 대체 예정
+    """
+
+    battery = (
+        db.query(Battery)
+        .filter(
+            Battery.id == battery_id,
+            Battery.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not battery:
+        raise HTTPException(status_code=404, detail="Battery not found")
+
+    if not csv_path.startswith("/backendWorkspace/data"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid csv_path",
+        )
+
+    ml_csv_path = csv_path.replace(
+        "/backendWorkspace/data",
+        "/mlWorkspace/data",
+        1,
+    )
+
+    result = predict_rul(ml_csv_path)
+
+    if "rul" not in result:
+        raise HTTPException(
+            status_code=500,
+            detail="Invalid ML response",
+        )
+
+    rul = float(result["rul"])
+    rul_status = calc_rul_status(rul)
+
+    return {
+        "battery_id": battery_id,
+        "rul": rul,
+        "rul_status": rul_status,
+    }
+
+
+# ====================
+# Internal Utils
+# ====================
 def get_or_create_battery(
     db: Session,
     user_id: int,
@@ -165,220 +274,3 @@ def get_or_create_battery(
     db.commit()
     db.refresh(battery)
     return battery
-
-
-# -------------------------
-# 업로드 (핵심)
-# POST /batteries/uploads
-# form-data: battery_name, file
-# - battery 없으면 자동 생성
-# - data/user_{id}/{battery_name}/{time}.csv 저장
-# -------------------------
-@router.post(
-    "/uploads",
-    response_model=BatteryFileUploadResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def upload_battery_file(
-    battery_name: str = Form(...),
-    battery_file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    battery_name = battery_name.strip()
-    if not battery_name:
-        raise HTTPException(status_code=400, detail="battery_name is required")
-
-    # 1) Battery 컨테이너 확보(없으면 생성)
-    battery = get_or_create_battery(db, current_user.id, battery_name)
-
-    # 2) 파일 저장 준비(이름 기반 폴더)
-    try:
-        raw_dir = ensure_battery_dir(current_user.id, battery_name)
-        filename, ext = build_filename(battery_file.filename or "upload.csv")
-        save_path = raw_dir / filename
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    # 3) 파일 저장(스트리밍)
-    total = 0
-    try:
-        with open(save_path, "wb") as f:
-            while True:
-                chunk = await battery_file.read(1024 * 1024)  # 1MB
-                if not chunk:
-                    break
-                f.write(chunk)
-                total += len(chunk)
-    finally:
-        await battery_file.close()
-
-    # 4) 업로드 로그 저장
-    upload = BatteryFileUpload(
-        battery_id=battery.id,
-        user_id=current_user.id,
-        original_filename=battery_file.filename or "unknown",
-        stored_path=str(save_path),
-        file_ext=ext,
-        file_size=total,
-    )
-    db.add(upload)
-
-    # 5) has_data 업데이트
-    if not battery.has_data:
-        battery.has_data = True
-
-    db.commit()
-    db.refresh(upload)
-    return upload
-
-
-# ====================
-# RUL Prediction (CSV 기반, 전체 저장)
-# ====================
-@router.post("/{battery_id}/rul")
-def predict_battery_rul(
-    battery_id: int,
-    csv_path: str = Form(...),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    - ML 예측 결과 전체를 DB에 저장
-    - 응답도 ML 결과 + backend 계산 필드 전부 반환
-    """
-
-    battery = (
-        db.query(Battery)
-        .filter(
-            Battery.id == battery_id,
-            Battery.user_id == current_user.id,
-        )
-        .first()
-    )
-    if not battery:
-        raise HTTPException(status_code=404, detail="Battery not found")
-
-    if not csv_path.startswith("/backendWorkspace/data"):
-        raise HTTPException(status_code=400, detail="Invalid csv_path")
-
-    ml_csv_path = csv_path.replace(
-        "/backendWorkspace/data",
-        "/mlWorkspace/data",
-        1,
-    )
-
-    # 1️⃣ ML 호출
-    ml_result = predict_rul(ml_csv_path)
-
-    if "rul" not in ml_result:
-        raise HTTPException(status_code=500, detail="Invalid ML response")
-
-    # 2️⃣ backend 파생 값
-    rul = float(ml_result["rul"])
-    rul_status = calc_rul_status(rul)
-
-    # 3️⃣ DB 저장
-    battery_rul = BatteryRUL(
-        battery_id=battery.id,
-        battery_file_upload_id=ml_result.get("battery_file_upload_id"),
-        rul=rul,
-        rul_status=rul_status,
-        model=ml_result.get("model"),
-        model_version=ml_result.get("model_version"),
-        sequence_length=ml_result.get("sequence_length"),
-        feature_count=ml_result.get("feature_count"),
-        latency_ms=ml_result.get("latency_ms"),
-        inference_time=ml_result.get("inference_time"),
-        raw_response=ml_result,
-    )
-
-    db.add(battery_rul)
-    db.commit()
-    db.refresh(battery_rul)
-
-    # 4️⃣ 전체 응답 반환
-    return {
-        "battery_id": battery.id,
-        "battery_rul_id": battery_rul.id,
-        **ml_result,
-        "rul_status": rul_status,
-        "created_at": battery_rul.created_at,
-    }
-
-
-# ====================
-# Internal Utils
-# ====================
-def get_or_create_battery(
-    db: Session,
-    user_id: int,
-    battery_name: str,
-) -> Battery:
-# -------------------------
-# 업로드 로그 목록
-# GET /batteries/{battery_name}/uploads.  --> 배터리 이름에 대한 파일 목록 조회
-# -------------------------
-@router.get(
-    "/{battery_id}/uploads",
-    response_model=List[BatteryFileUploadResponse],
-)
-def list_uploads(
-    battery_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    battery = (
-        db.query(Battery)
-        .filter(Battery.id == battery_id, Battery.user_id == current_user.id)
-        .first()
-    )
-    if not battery:
-        raise HTTPException(status_code=404, detail="Battery not found")
-
-    return (
-        db.query(BatteryFileUpload)
-        .filter(
-            BatteryFileUpload.battery_id == battery_id,
-            BatteryFileUpload.user_id == current_user.id,
-        )
-        .order_by(BatteryFileUpload.uploaded_at.desc())
-        .all()
-    )
-
-
-# -------------------------
-# 다운로드
-# GET /batteries/{battery_id}/uploads/{upload_id}/download  --> csv 파일 다운로드
-# -------------------------
-@router.get("/{battery_id}/uploads/{upload_id}/download")
-def download_upload(
-    battery_id: int,
-    upload_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    # join으로 소유권+업로드 한번에 검증
-    upload = (
-        db.query(BatteryFileUpload)
-        .join(Battery, Battery.id == BatteryFileUpload.battery_id)
-        .filter(
-            Battery.id == battery_id,
-            Battery.user_id == current_user.id,
-            BatteryFileUpload.id == upload_id,
-            BatteryFileUpload.user_id == current_user.id,
-        )
-        .first()
-    )
-    if not upload:
-        raise HTTPException(status_code=404, detail="File not found")
-
-    path = Path(upload.stored_path)
-    if not path.exists():
-        raise HTTPException(status_code=404, detail="File missing on server")
-
-    return FileResponse(
-        path=str(path),
-        filename=path.name,
-        media_type="application/octet-stream",
-    )

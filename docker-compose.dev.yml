@@ -41,6 +41,7 @@ services:
       - '9000:9000'
     volumes:
       - ./ml:/mlWorkspace
+      - ./backend/data:/mlWorkspace/data
 
   mysql:
     image: mysql:8.0

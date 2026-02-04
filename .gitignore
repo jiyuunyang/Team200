@@ -122,3 +122,5 @@ htmlcov/
 
 # ===== OS =====
 .DS_Store
+
+backend/data/

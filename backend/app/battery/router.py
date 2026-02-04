@@ -1,23 +1,35 @@
 # backend/app/battery/router.py
 
 from typing import List
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.db.dependencies import get_db
-from app.db.models import Battery, BatteryCycle, User
+from app.db.models import (
+    Battery,
+    BatteryCycle,
+    BatteryFileUpload,
+    User,
+)
 from app.auth.dependencies import get_current_user
 from app.battery.schemas import (
     BatteryCreateRequest,
     BatteryResponse,
     BatteryCycleCreate,
     BatteryCycleResponse,
+    BatteryFileUploadResponse,
 )
+from app.utils.storage import ensure_battery_dir, build_filename
 
-router = APIRouter(prefix="/batteries", tags=["Battery"])
+router = APIRouter(tags=["Battery"])
 
-# 배터리 생성
+
+# ====================
+# Battery
+# ====================
 @router.post("", response_model=BatteryResponse, status_code=201)
 def create_battery(
     data: BatteryCreateRequest,
@@ -29,31 +41,28 @@ def create_battery(
         battery_name=data.battery_name,
         has_data=False,
     )
-
     db.add(battery)
     db.commit()
     db.refresh(battery)
-
     return battery
 
 
-# 배터리 목록 조회 (기존 그대로 OK)
 @router.get("", response_model=List[BatteryResponse])
 def list_batteries(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    batteries = (
+    return (
         db.query(Battery)
         .filter(Battery.user_id == current_user.id)
         .order_by(Battery.created_at.desc())
         .all()
     )
 
-    return batteries
 
-
-# 배터리 cycle + feature(JSON) 추가 (핵심 추가)
+# ====================
+# Battery Cycle
+# ====================
 @router.post(
     "/{battery_id}/cycles",
     response_model=BatteryCycleResponse,
@@ -65,7 +74,6 @@ def create_battery_cycle(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # 1️⃣ 배터리 소유권 확인
     battery = (
         db.query(Battery)
         .filter(
@@ -74,30 +82,24 @@ def create_battery_cycle(
         )
         .first()
     )
-
     if not battery:
         raise HTTPException(status_code=404, detail="Battery not found")
 
-    # 2️⃣ cycle 생성
     cycle = BatteryCycle(
         battery_id=battery.id,
         cycle_index=data.cycle_index,
         features=data.features,
     )
-
     db.add(cycle)
 
-    # 3️⃣ 첫 데이터면 has_data true
     if not battery.has_data:
         battery.has_data = True
 
     db.commit()
     db.refresh(cycle)
-
     return cycle
 
 
-# 배터리별 cycle 조회 API
 @router.get(
     "/{battery_id}/cycles",
     response_model=List[BatteryCycleResponse],
@@ -115,7 +117,6 @@ def list_battery_cycles(
         )
         .first()
     )
-
     if not battery:
         raise HTTPException(status_code=404, detail="Battery not found")
 
@@ -125,3 +126,90 @@ def list_battery_cycles(
         .order_by(BatteryCycle.cycle_index)
         .all()
     )
+
+
+# ====================
+# CSV 업로드
+# ====================
+@router.post(
+    "/uploads",
+    response_model=BatteryFileUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_battery_file(
+    battery_name: str = Form(...),
+    battery_file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    battery_name = battery_name.strip()
+    if not battery_name:
+        raise HTTPException(status_code=400, detail="battery_name is required")
+
+    battery = get_or_create_battery(db, current_user.id, battery_name)
+
+    try:
+        raw_dir = ensure_battery_dir(current_user.id, battery_name)
+        filename, ext = build_filename(battery_file.filename or "upload.csv")
+        save_path = raw_dir / filename
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    total = 0
+    try:
+        with open(save_path, "wb") as f:
+            while True:
+                chunk = await battery_file.read(1024 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+                total += len(chunk)
+    finally:
+        await battery_file.close()
+
+    upload = BatteryFileUpload(
+        battery_id=battery.id,
+        user_id=current_user.id,
+        original_filename=battery_file.filename or "unknown",
+        stored_path=str(save_path),
+        file_ext=ext,
+        file_size=total,
+    )
+    db.add(upload)
+
+    if not battery.has_data:
+        battery.has_data = True
+
+    db.commit()
+    db.refresh(upload)
+    return upload
+
+
+# ====================
+# 내부 유틸
+# ====================
+def get_or_create_battery(
+    db: Session,
+    user_id: int,
+    battery_name: str,
+) -> Battery:
+    battery = (
+        db.query(Battery)
+        .filter(
+            Battery.user_id == user_id,
+            Battery.battery_name == battery_name,
+        )
+        .first()
+    )
+    if battery:
+        return battery
+
+    battery = Battery(
+        user_id=user_id,
+        battery_name=battery_name,
+        has_data=False,
+    )
+    db.add(battery)
+    db.commit()
+    db.refresh(battery)
+    return battery

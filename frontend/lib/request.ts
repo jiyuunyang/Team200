@@ -13,7 +13,6 @@ export async function apiRequest<T>(
 	try {
 		const res = await fetch(`${API_URL}${endpoint}`, {
 			headers: {
-				"Content-Type": "application/json",
 				...(options.headers || {}),
 			},
 			...options,
@@ -27,4 +26,19 @@ export async function apiRequest<T>(
 		console.error("API 호출 오류:", err);
 		return { success: false, message: "네트워크 오류" };
 	}
+}
+
+// ✅ 파일 / 텍스트 / blob 전용
+export async function fileRequest(
+	endpoint: string,
+	options: RequestInit = {},
+): Promise<Response> {
+	const res = await fetch(`${API_URL}${endpoint}`, {
+		...options,
+		headers: {
+			...(options.headers || {}),
+		},
+	});
+
+	return res;
 }

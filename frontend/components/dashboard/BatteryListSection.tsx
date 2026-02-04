@@ -1,9 +1,10 @@
+import { BatteryData } from '@/lib/service/battery';
 import BatteryCard from './BatteryCard';
 
 export default function BatteryListSection({
   batteryList,
 }: {
-  batteryList: { title: string; checked: string; rul: number }[];
+  batteryList: BatteryData[];
 }) {
   return (
     <section className='px-5 flex flex-col gap-4'>
@@ -14,12 +15,14 @@ export default function BatteryListSection({
         </span>
       </div>
       {batteryList &&
-        batteryList.map((battery, index) => (
+        batteryList.map((battery) => (
           <BatteryCard
-            key={index}
-            title={battery.title}
-            checked={battery.checked}
-            rul={battery.rul}
+            //TODO: 배터리 이름, 마지막 측정일, RUL 데이터로 변경 필요
+            key={battery.id}
+            id={battery.id}
+            title={battery.battery_name}
+            checked={battery.has_data ? '데이터 있음' : '데이터 없음'}
+            rul={battery.id}
           />
         ))}
     </section>

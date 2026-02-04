@@ -17,4 +17,4 @@ def health_check():
 
 # Auth routes
 app.include_router(auth_router, prefix="/auth")
-app.include_router(battery_router)
+app.include_router(battery_router, prefix="/batteries") 

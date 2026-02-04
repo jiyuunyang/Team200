@@ -24,6 +24,9 @@ from app.battery.schemas import (
 )
 from app.utils.storage import ensure_battery_dir, build_filename
 
+from app.utils.ml_client import predict_rul
+from app.battery.service import calc_rul_status
+
 router = APIRouter(tags=["Battery"])
 
 
@@ -213,3 +216,58 @@ def get_or_create_battery(
     db.commit()
     db.refresh(battery)
     return battery
+
+
+@router.post(
+    "/{battery_id}/rul",
+    status_code=200,
+)
+def predict_battery_rul(
+    battery_id: int,
+    csv_path: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # 1️⃣ 배터리 소유권 체크
+    battery = (
+        db.query(Battery)
+        .filter(
+            Battery.id == battery_id,
+            Battery.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not battery:
+        raise HTTPException(status_code=404, detail="Battery not found")
+
+    # 2️⃣ backend 경로 → ml 경로 변환 (핵심 수정 포인트)
+    if not csv_path.startswith("/backendWorkspace/data"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid csv_path (must start with /backendWorkspace/data)",
+        )
+
+    ml_csv_path = csv_path.replace(
+        "/backendWorkspace/data",
+        "/mlWorkspace/data",
+        1,
+    )
+
+    # 3️⃣ ML 호출
+    result = predict_rul({"csv_path": ml_csv_path})
+    if not isinstance(result, dict) or "rul" not in result:
+        raise HTTPException(
+            status_code=500,
+            detail="Invalid ML response",
+        )
+
+    # 4️⃣ RUL → 상태 계산
+    rul = result["rul"]
+    rul_status = calc_rul_status(rul)
+
+    # 5️⃣ 응답
+    return {
+        "battery_id": battery_id,
+        "rul": rul,
+        "rul_status": rul_status,
+    }

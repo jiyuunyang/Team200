@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+
+/* 유지보전 대시보드용 다크 테마 - 기본값으로 적용 */
+:root {
+  --background: oklch(0.1 0 0);
+  --foreground: oklch(0.98 0 0);
+}
+
+@theme inline {
+  --font-sans: 'Geist', 'Geist Fallback';
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}

@@ -3,6 +3,7 @@
 
 배터리 충전 및 방전 데이터를 기반으로  
 **상태 모니터링과 예지보전(Predictive Maintenance)** 을 목표로 하는 웹 서비스입니다.
+- 발표자료 : [발표 PDF](https://drive.google.com/file/d/1e97v352MC7YDU_LXzmHsQ9laZS0NzKws/view?usp=sharing)
 
 본 프로젝트는 **Next.js 프론트엔드 + FastAPI 백엔드** 구조로 구성되어 있으며,  
 Docker 기반 **dev / stage 환경 분리**,  
@@ -161,6 +162,5 @@ B) stage 환경
 - 환경 분리 및 배포 흐름 고려
 - Observability 구성
 등을 통해 실무 환경을 가정한 프로젝트 구성을 목표로 합니다.
-- 발표자료 : [발표 PDF](https://drive.google.com/file/d/1e97v352MC7YDU_LXzmHsQ9laZS0NzKws/view?usp=sharing)
 
 

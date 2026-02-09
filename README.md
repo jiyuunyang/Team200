@@ -161,4 +161,6 @@ B) stage 환경
 - 환경 분리 및 배포 흐름 고려
 - Observability 구성
 등을 통해 실무 환경을 가정한 프로젝트 구성을 목표로 합니다.
+- 발표자료 : [발표 PDF](https://drive.google.com/file/d/1e97v352MC7YDU_LXzmHsQ9laZS0NzKws/view?usp=sharing)
+
 

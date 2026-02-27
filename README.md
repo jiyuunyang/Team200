@@ -5,6 +5,7 @@
 **상태 모니터링과 예지보전(Predictive Maintenance)** 을 목표로 하는 웹 서비스입니다. 👉 [발표 PDF 자료 보러가기](https://drive.google.com/file/d/1e97v352MC7YDU_LXzmHsQ9laZS0NzKws/view?usp=sharing)
 
 ![화면 기록 2026-02-05 오전 9 32 24](https://github.com/user-attachments/assets/9a951afc-d271-43cf-a8e2-a9e3692cb277)
+
 [시연 영상 예시]
 - 한 사이클의 배터리 데이터를 불러와 남은 배터리 잔량을 예측할 수 있습니다.
 - 실제 상용화될 경우 해당 배터리에 대한 센서데이터로 대체 가능합니다.
